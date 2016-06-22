@@ -1,0 +1,106 @@
+<HTML>
+	<body>
+		Driver for scheduling events via Google Calendar. 
+		<p>
+		<h3>Setup</h3>
+		<h4>Enable the Google Calendar API</h4>
+		<ul>
+			<li>
+				Use <a rel="nofollow" target="_blank" class="external text" href="https://console.developers.google.com/start/api?id=calendar">this wizard</a> to access the Google Developers Console and enable the API. 
+				Access using your Google account, create or select a project and click the <b>Go to credentials</b> button to continue.
+			</li>
+			<li>
+				Select <b>Credentials</b> from the side menu. If you see the page "Add credentials to your project", click on <b>Cancel</b> at the end of the page.
+			</li>
+			<li>
+				At the top of the page, select the <b>OAuth consent screen</b> tab. Select an <b>Email address</b>, enter a <b>Product name</b> if not already set, and click the <b>Save</b> button.
+			</li>
+			<li>
+				Back on the <b>Credentials</b> tab, click the <b>Create credentials</b> button and select <b>OAuth client ID</b>.
+			</li>
+			<li>
+				Select the application type <b>Other</b> and click the <b>Create</b> button.
+			</li>
+			<li>
+				Click <b>OK</b> to dismiss the resulting dialog.
+			</li>
+			<li>
+				Click the <b>Download JSON</b> button to the right of the created client ID from the list. 
+			</li>
+			<li>
+				Move the downloaded file to your Sfera installation. 
+				Place it in the root directory and rename it "client_secret.json", or specify the path to this file in the "client_secret_file" configuration parameter.
+			</li>
+		</ul>
+		
+		<h4>Create the calendar</h4>
+		<ul>
+			<li>
+				Go to <a rel="nofollow" target="_blank" class="external text" href="https://www.google.com/calendar/">Google Calendar</a> and create a Google account or use your personal one to login.
+			</li>
+			<li>
+				If you are going to use the primary calendar for this account you are done, go to the next section. If, on the other hand, you want to create a separate calendar for Sfera (or more that one), continue here.
+			</li>
+			<li>
+				From the left column, click on the small option menu button on the right of <b>My Calendars</b>; select <b>Create new calendar</b>.
+			</li>
+			<li>
+				Enter a name, set the other settings as desired and click on <b>Create calendar</b>.
+			</li>
+			<li>
+				Find the created calendar from the list under <b>My Calendars</b>, select the option menu button on its right and select <b>Calendar settings</b>.
+			</li>
+			<li>
+				Go to the section <b>Calendar Address</b> and copy the displayed <b>Calendar ID</b>.
+			</li>
+			<li>
+				Add the calendars IDs to the the "calendars" configuration parameter as a list, e.g.:<br />
+<pre>
+    calendars:
+        - "123456789abcd@group.calendar.google.com"
+        - "dcba987654321@group.calendar.google.com"
+</pre>
+			</li>
+		</ul>
+		
+		<h4>Authorize access</h4>
+		The first time the driver is started it requires access permission to the calendar information of the selected Google account. 
+		This procedure is necessary for each driver instance created.
+		<p>
+		Shortly after the driver is started for the first time, in the logs you will see an INFO message saying to go to a (very long) URL. 
+		Copy that URL in your browser, login with the previously selected Google account and click on <b>Accept</b>.
+		<p>
+		The next page will show a code. Copy it in the "code" configuration parameter and wait for the driver to restart and complete the initialization correctly.
+		
+		<h4>Scheduling events</h4>
+		To trigger an event during a specific time just create an event in the calendar for the selected time period.<br />
+		When the start time of the created event will pass the driver will trigger an event with the ID set to the calendar name and as value an object representing the list of all the ongoing events.
+		<p>
+		For instance, assuming the driver instance has ID "gcal" and the calendar is called "sferacal", consider the following script:
+		<p>
+<pre>
+    gcal.sferacal : {
+        log.info("Calendar name: " + _e.value.summary);
+        for each (var e in _e.value.items) {
+            log.info("Event titte: " + e.summary);
+            log.info("Event description: " + e.description);
+        }
+    }
+</pre>
+		<p>
+		Whenever a new calendar event starts an event with ID "gcal.sferacal" will be triggered and the above script will log the details of the ongoing events.
+		
+		@author Giampiero Baggiani
+		@sfera.config type
+			cc.sferalabs.sfera.drivers.google_calendar.GoogleCalendar
+		@sfera.config calendars
+			array of calendars IDs. Omit this parameter to use the primary calendar
+		@sfera.config poll_interval
+			the interval in seconds between polling requests. Defaults to 5
+		@sfera.config code
+			authorization code (see Setup for details)
+		@sfera.config client_secret_file
+			optionally needed just for the initial setup; path to the client secret file. Defaults to "client_secret.json"
+
+	</body>
+</HTML>

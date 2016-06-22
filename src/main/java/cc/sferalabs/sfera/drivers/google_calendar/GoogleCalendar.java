@@ -1,11 +1,13 @@
-package cc.sferalabs.sfera.drivers.google.calendar;
+package cc.sferalabs.sfera.drivers.google_calendar;
 
-import java.io.File;
+import java.io.IOException;
 import java.io.Reader;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
+import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
+import java.nio.file.StandardCopyOption;
 import java.util.Arrays;
 import java.util.List;
 
@@ -22,17 +24,22 @@ import com.google.api.client.util.DateTime;
 import com.google.api.client.util.store.FileDataStoreFactory;
 import com.google.api.services.calendar.Calendar;
 import com.google.api.services.calendar.CalendarScopes;
-import com.google.api.services.calendar.model.Event;
 import com.google.api.services.calendar.model.Events;
 
 import cc.sferalabs.sfera.core.Configuration;
 import cc.sferalabs.sfera.drivers.Driver;
-import cc.sferalabs.sfera.drivers.google.calendar.events.GoogleCalendarEvent;
+import cc.sferalabs.sfera.drivers.google_calendar.events.GoogleCalendarEvent;
 import cc.sferalabs.sfera.events.Bus;
 
+/**
+ *
+ * @author Giampiero Baggiani
+ *
+ * @version 1.0.0
+ *
+ */
 public class GoogleCalendar extends Driver {
 
-	private static final String DATA_DIR = "data/cc.sferalabs.sfera.drivers.google.calendar/";
 	private static final String APPLICATION_NAME = "Sfera - Google Calendar driver";
 	private static final JsonFactory JSON_FACTORY = JacksonFactory.getDefaultInstance();
 	private static final List<String> SCOPES = Arrays.asList(CalendarScopes.CALENDAR_READONLY);
@@ -44,6 +51,7 @@ public class GoogleCalendar extends Driver {
 	/**
 	 * 
 	 * @param id
+	 *            the driver instance ID
 	 */
 	public GoogleCalendar(String id) {
 		super(id);
@@ -51,25 +59,44 @@ public class GoogleCalendar extends Driver {
 
 	@Override
 	protected boolean onInit(Configuration config) throws InterruptedException {
-		String dir = DATA_DIR + getId() + "/";
-		GoogleClientSecrets clientSecrets;
+		String clientSecretParam = config.get("client_secret_file", "client_secret.json");
+		Path tempClientSecretPath = Paths.get(clientSecretParam);
+		Path clientSecretPath;
 		try {
-			Reader reader = Files.newBufferedReader(Paths.get(dir + "/client_secret.json"));
+			clientSecretPath = getDriverInstanceDataDir().resolve("client_secret.json");
+		} catch (IOException e) {
+			log.error("Error creating data dir", e);
+			return false;
+		}
+		if (Files.exists(tempClientSecretPath)) {
+			log.debug("Temp client secret file found. Moving it to data dir");
+			try {
+				Files.move(tempClientSecretPath, clientSecretPath,
+						StandardCopyOption.REPLACE_EXISTING);
+			} catch (IOException e) {
+				log.error("Error moving client secret file '" + tempClientSecretPath + "'", e);
+				return false;
+			}
+		}
+
+		GoogleClientSecrets clientSecrets;
+		try (Reader reader = Files.newBufferedReader(clientSecretPath, StandardCharsets.UTF_8)) {
 			clientSecrets = GoogleClientSecrets.load(JSON_FACTORY, reader);
 		} catch (NoSuchFileException nsfe) {
-			log.error("File 'client_secret.json' in dir '{}' missing", dir);
+			log.error("Client secret file not found");
 			return false;
 		} catch (Exception e) {
-			log.error("Error loading file 'client_secret.json'", e);
+			log.error("Error loading client secret file '" + clientSecretPath + "'", e);
 			return false;
 		}
 
 		calendars = config.get("calendars", Arrays.asList("primary"));
-		pollInterval = config.get("pollinterval", 5) * 1000;
+		pollInterval = config.get("poll_interval", 5) * 1000;
 
 		try {
 			NetHttpTransport httpTransport = GoogleNetHttpTransport.newTrustedTransport();
-			FileDataStoreFactory dataStoreFactory = new FileDataStoreFactory(new File(dir));
+			FileDataStoreFactory dataStoreFactory = new FileDataStoreFactory(
+					getDriverInstanceDataDir().toFile());
 			GoogleAuthorizationCodeFlow flow = new GoogleAuthorizationCodeFlow.Builder(
 					httpTransport, JSON_FACTORY, clientSecrets, SCOPES)
 							.setDataStoreFactory(dataStoreFactory).setAccessType("offline").build();
@@ -114,14 +141,8 @@ public class GoogleCalendar extends Driver {
 			for (String calendarId : calendars) {
 				Events events = cal.events().list(calendarId).setTimeMax(startMax)
 						.setTimeMin(endMin).setSingleEvents(true).execute();
-
 				String calendarName = events.getSummary().replace(' ', '-');
-				List<Event> items = events.getItems();
-				List<String> summaries = new ArrayList<>(items.size());
-				for (Event event : items) {
-					summaries.add(event.getSummary());
-				}
-				Bus.postIfChanged(new GoogleCalendarEvent(this, calendarName, summaries));
+				Bus.postIfChanged(new GoogleCalendarEvent(this, calendarName, events));
 			}
 		} catch (Exception e) {
 			log.error("Polling error", e);

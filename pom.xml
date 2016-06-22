@@ -3,18 +3,33 @@
 	<modelVersion>4.0.0</modelVersion>
 
 	<groupId>cc.sferalabs.sfera.drivers</groupId>
-	<artifactId>google.calendar</artifactId>
-	<version>0.0.1-SNAPSHOT</version>
+	<artifactId>google-calendar</artifactId>
+	<version>1.0.0</version>
 
-	<name>GoogleCalendar</name>
-	<description>Use Google Calendar to schedule events</description>
+	<name>Google Calendar</name>
+	<description>Driver to use Google Calendar to schedule events</description>
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<sfera-version>0.1.0</sfera-version>
 	</properties>
 
+	<distributionManagement>
+		<repository>
+			<id>sferalabs.cc</id>
+			<url>scp://sferalabs.cc/var/www/sfera.sferalabs/mvn-repo/</url>
+		</repository>
+	</distributionManagement>
+
 	<build>
+		<extensions>
+			<extension>
+				<groupId>org.apache.maven.wagon</groupId>
+				<artifactId>wagon-ssh</artifactId>
+				<version>2.3</version>
+			</extension>
+		</extensions>
+
 		<resources>
 			<resource>
 				<directory>src/main/resources</directory>
@@ -26,7 +41,7 @@
 				</includes>
 			</resource>
 		</resources>
-		
+
 		<plugins>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
@@ -89,6 +104,12 @@
 						</taglet>
 						<taglet>
 							<tagletClass>cc.sferalabs.sfera.doc.taglets.EventIdTaglet</tagletClass>
+						</taglet>
+						<taglet>
+							<tagletClass>cc.sferalabs.sfera.doc.taglets.EventValueTaglet</tagletClass>
+						</taglet>
+						<taglet>
+							<tagletClass>cc.sferalabs.sfera.doc.taglets.EventSimpleValueTaglet</tagletClass>
 						</taglet>
 					</taglets>
 					<tagletArtifact>
